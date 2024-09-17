@@ -34,19 +34,19 @@ jobs:
 
     - name: Test ports and run ADB commands
       run: |
-        # 逐行读取解码后的 IP 并测试端口连接性
+        # 逐行读取解码后的 IP 并测试端口连通性
         while IFS= read -r ip; do
           echo "Testing IP: $ip"
           
           # 测试7500端口连通性
-          if (echo >/dev/tcp/"$ip"/7500) >/dev/null 2>&1; then
-            echo "$ip:7500 is open, skipping."
+          if timeout 5 telnet "$ip" 7500 </dev/null 2>&1 | grep -q "Connected"; then
+            echo "$ip:7500 is open, skipping to next IP."
             continue
           else
             echo "$ip:7500 is not open, testing 5555..."
-            
+
             # 测试5555端口连通性
-            if (echo >/dev/tcp/"$ip"/5555) >/dev/null 2>&1; then
+            if timeout 5 telnet "$ip" 5555 </dev/null 2>&1 | grep -q "Connected"; then
               echo "$ip:5555 is open, connecting via ADB..."
               
               # 使用 ADB 连接，并运行命令
@@ -57,7 +57,7 @@ jobs:
               adb disconnect "$ip:5555"
               echo "Commands executed on $ip:5555"
             else
-              echo "$ip:5555 is also not open, skipping."
+              echo "$ip:5555 is not reachable within 5 seconds, skipping."
             fi
           fi
         done < decoded_ips.txt
