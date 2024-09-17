@@ -1,4 +1,4 @@
-name: ADB Connection python
+name: ADB Connection Test
 
 on:
   schedule:
@@ -19,15 +19,13 @@ jobs:
         sudo apt-get install -y telnet adb curl python3 python3-pip
 
     - name: Download the 1.txt file from URL
-      id: download_file
       run: |
         curl -o 1.txt https://raw.githubusercontent.com/Janit8r/device_lge_judyln/S/1.txt
 
     - name: Decode IPs from 1.txt (Base64) and Test Ports
-      id: test_ports
       run: |
-        # Create a Python script to handle the IP processing
-        cat <<EOF > process_ips.py
+        # Create the Python script to handle IP processing
+        echo '''
 import base64
 import subprocess
 
@@ -71,7 +69,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
+        ''' > process_ips.py
 
     - name: Run Python script to process IPs
       run: |
@@ -79,8 +77,8 @@ EOF
 
     - name: Execute ADB commands on reachable IPs
       run: |
-        # Create a Python script to handle ADB commands
-        cat <<EOF > execute_adb_commands.py
+        # Create the Python script to handle ADB commands
+        echo '''
 import subprocess
 
 def execute_adb_commands(ip):
@@ -106,7 +104,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
+        ''' > execute_adb_commands.py
 
     - name: Run Python script to execute ADB commands
       run: |
