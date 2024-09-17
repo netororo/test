@@ -27,14 +27,17 @@ jobs:
     - name: Decode IPs from 1.txt (Base64)
       id: decode_ips
       run: |
-        # 读取并解码 Base64 的 IP 地址
-        DECODED_IPS=$(cat 1.txt | base64 --decode)
-        echo "::set-output name=decoded_ips::$DECODED_IPS"
+        # 将1.txt文件中的每一行逐个解码并存储为一个变量
+        while IFS= read -r line; do
+          DECODED_IP=$(echo "$line" | base64 --decode)
+          echo "$DECODED_IP" >> decoded_ips.txt
+        done < 1.txt
       shell: bash
 
     - name: Test ports and run ADB commands
       run: |
-        for ip in ${{ steps.decode_ips.outputs.decoded_ips }}; do
+        # 逐行读取解码后的 IP 并测试端口连接性
+        while IFS= read -r ip; do
           echo "Testing IP: $ip"
           
           # 测试7500端口连通性
@@ -59,4 +62,4 @@ jobs:
               echo "$ip:5555 is also not open, skipping."
             fi
           fi
-        done
+        done < decoded_ips.txt
