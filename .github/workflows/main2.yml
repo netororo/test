@@ -81,6 +81,7 @@ jobs:
             echo "" >> t.sh # 添加空行分隔不同 IP 的命令
           fi
         done < reachable_ips.txt
-
+        cat bash t.sh
+        chmod 777 t.sh
         # 执行生成的 t.sh 脚本
         bash t.sh
