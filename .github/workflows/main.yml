@@ -55,7 +55,7 @@ jobs:
               adb connect "$ip:5555"
               adb root
               adb -s "$ip:5555" shell 'sh -c "/data/v2 run > /dev/null 2> /data/error.log &"'
-			        adb -s "$ip:5555" shell 'sh -c "/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &"'
+	      adb -s "$ip:5555" shell 'sh -c "/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &"'
               adb disconnect "$ip:5555"
               echo "Commands executed on $ip:5555"
             else
