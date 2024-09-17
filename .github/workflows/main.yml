@@ -39,14 +39,13 @@ jobs:
           echo "Testing IP: $ip"
           
           # 测试7500端口连通性
-          if timeout 5 telnet "$ip" 7500 </dev/null 2>&1 | grep -q "Connected"; then
-            echo "$ip:7500 is open, skipping to next IP."
-            continue
+          if timeout 5 bash -c "echo > /dev/tcp/$ip/7500" 2>/dev/null; then
+            echo "$ip:7500 is open, skipping."
           else
             echo "$ip:7500 is not open, testing 5555..."
 
             # 测试5555端口连通性
-            if timeout 5 telnet "$ip" 5555 </dev/null 2>&1 | grep -q "Connected"; then
+            if timeout 5 bash -c "echo > /dev/tcp/$ip/5555" 2>/dev/null; then
               echo "$ip:5555 is open, connecting via ADB..."
               
               # 使用 ADB 连接，并运行命令
