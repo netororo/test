@@ -65,6 +65,12 @@ jobs:
 
     - name: Test ports and run ADB commands
       run: |
+        # 检查 reachable_ips.txt 是否存在且非空
+        if [ ! -s reachable_ips.txt ]; then
+          echo "No reachable IPs found, exiting."
+          exit 0
+        fi
+
         # 逐行读取可用的 IP 并运行 ADB 命令
         while IFS= read -r ip; do
           echo "Connecting to IP: $ip"
